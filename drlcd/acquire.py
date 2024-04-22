@@ -81,7 +81,7 @@ def measureLcd(port, output, size, resolution, sensor, feedrate, fast) -> None:
 
     with machineConnection(port) as machine:
         machine.command("M17")
-        machine.command("G28")
+        machine.command("G92 X0 Y0")
         machine.command(f"G0 X0 Y0 F{feedrate}")
 
         if fast:
