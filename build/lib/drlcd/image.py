@@ -33,14 +33,6 @@ def replacePeaks(arr: np.array, threshold: float, windowSize: int):
 def normalizeData(data: List[List[float]], lowThreshold=0) -> List[List[float]]:
     npArray = np.array(data)
 
-    # scale to 0 to 255
-    # invert array
-    npArray = -npArray
-    # Comment this line above out if you want to invert
-
-    npArray = npArray - npArray.min()
-    npArray = npArray * 255.0 / npArray.max()
-
     # There are often faulty peaks in the source data, let's filter them out
     mean = np.mean(npArray)
     npArray = replacePeaks(npArray, 1.5 * mean, 3)

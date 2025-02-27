@@ -24,15 +24,23 @@ command line control app that allows you to acquire data and process them in the
 
 ```
 # Installation
-$ pip install git+https://github.com/yaqwsx/DrLCD.git@master
+$ pip install .
+$ pip install https://cdn.evilmadscientist.com/dl/ad/public/AxiDraw_API.zip
+
 
 # Acquire data
-$ drlcd measurelcd --size <display_size_in_mm> --resolution <number_of_samples> --fast <output_file>
-# E.g. drlcd measurelcd --size 202x130 --resolution 202x130 --fast frist-saturn2-mesurement.json
+$ python -m drlcd measurelcd --size <display_size_in_mm> --resolution <number_of_samples> --fast <output_file>
+# E.g. drlcd measurelcd --size 202x130 --resolution 202x130 test.json
 
 # Visualize measurement
-$ drlcd visualize --show --title "<graph name>" <measurement file> <output HTML>
+$ python -m drlcd visualize --show --title "<graph name>" <measurement file> <output HTML>
 
 # Create compensation map
-$ drlcd compensate --measurement <measurement file> --min <low value to compensate> --max <high value to compensate> --by <amount of dimming> --screen <resolution in px> --cutoff <black value for screen detection> <output PNG file>
+$ python -m drlcd compensate --measurement <measurement file> --min <low value to compensate> --max <high value to compensate> --by <amount of dimming> --screen <resolution in px> --cutoff <black value for screen detection> <output PNG file>
+```
+
+```
+python -m drlcd measurelcd --size 30x30 --resolution 10x10 --sleeptime 3.0 --brightness_threshold=0.5 test.json
+python -m drlcd visualize --show --title "test" test.json test.html
+python -m drlcd compensate --measurement test.json --min 0 --max 255 --by 25 --screen 10x10 --cutoff 0.0 test.png
 ```

@@ -1,59 +1,38 @@
 from contextlib import contextmanager
 from typing import Generator, List
 from serial import Serial # type: ignore
+from pyaxidraw import axidraw   # import module
 
 class Machine:
-    def __init__(self, port: Serial) -> None:
-        self._port = port
-
-    @contextmanager
-    def _preserveTimeout(self) -> Generator[None, None, None]:
-        originalTimeout = self._port.timeout
-        try:
-            yield
-        finally:
-            self._port.timeout = originalTimeout
+    def __init__(self) -> None:
+        self.axidraw = axidraw.AxiDraw()
+        self.axidraw.interactive()
+        if not self.axidraw.connect():            # Open serial port to AxiDraw;
+            exit(1)
 
     def waitForBoot(self) -> None:
         """
         Wait for the board to boot up - that is there are no new info is echoed
         """
-        with self.preserveTimeout():
-            self._port.timeout = 2
-            while True:
-                line = self._port.readline().decode("utf-8")
-                if line == "":
-                    return
+        pass
 
-    def command(self, command: str, timeout: float=10) -> List[str]:
-        """
-        Issue G-code command, waits for completion and returns a list of
-        returned values (lines of response)
-        """
-        if not command.endswith("\n"):
-            command += "\n"
-        with self._preserveTimeout():
-            # Clear pending data
-            self._port.timeout = None
-            self._port.read_all()
-            # Send command
-            self._port.write(command.encode("utf-8"))
-            # Wait for response
-            response = []
-            self._port.timeout = timeout
-            while True:
-                line = self._port.readline().decode("utf-8")
-                if line == "":
-                    raise TimeoutError(f"No response on command {command.strip()}")
-                line = line.strip()
-                if line.endswith("ok"):
-                    if line[:-2] != "":
-                        response.append(line[:-2])
-                    return response
-                response.append(line)
+    def move_to(self, x: float, y: float) -> None:
+        self.axidraw.moveto(x, y)
+        self.axidraw.block()
+
+    def start_measure(self) -> None:
+        self.axidraw.pendown()
+        self.axidraw.block()
+
+    def stop_measure(self) -> None:
+        self.axidraw.penup()
+        self.axidraw.block()
 
 
 @contextmanager
-def machineConnection(port: str) -> Generator[Machine, None, None]:
-    with Serial(port) as s:
-        yield Machine(s)
+def machineConnection() -> Generator[Machine, None, None]:
+    machine = Machine()
+    try:
+        yield machine
+    finally:
+        machine.move_to(0, 0)
