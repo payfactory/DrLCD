@@ -7,6 +7,12 @@ class Machine:
     def __init__(self) -> None:
         self.axidraw = axidraw.AxiDraw()
         self.axidraw.interactive()
+ # Setze den pen_pos_up-Parameter, hier 1 (was in deinem Setup 1mm entsprechen soll)
+        #self.axidraw.options.pen_pos_up =25
+        #self.axidraw.options.pen_pos_down =31
+
+
+
         if not self.axidraw.connect():            # Open serial port to AxiDraw;
             exit(1)
 

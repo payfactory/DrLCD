@@ -29,6 +29,7 @@ def replacePeaks(arr: np.array, threshold: float, windowSize: int):
 
     return result
 
+
 def normalizeData(data: List[List[float]], lowThreshold=0) -> List[List[float]]:
     npArray = np.array(data)
 
@@ -55,18 +56,8 @@ def visualize(input, output, title, show, threshold):
     with open(input) as f:
         measurement = json.load(f)
     data = normalizeData(measurement["measurements"], lowThreshold=threshold)
-    
-    # Calculate statistics
-    np_data = np.array(data)
-    min_val = np.nanmin(np_data)
-    max_val = np.nanmax(np_data)
-    avg_val = np.nanmean(np_data)
-    
-    # Add statistics to title
-    stats_title = f"{title}<br>Min: {min_val:.3f} | Max: {max_val:.3f} | Avg: {avg_val:.3f}"
-    
     fig = go.Figure(data=[go.Surface(z=data)])
-    fig.update_layout(title=stats_title, autosize=True,
+    fig.update_layout(title=title, autosize=True,
                   scene_aspectmode="manual", scene_aspectratio=dict(x=1, y=measurement["resolution"][1]/measurement["resolution"][0], z=0.1))
     fig.write_html(output)
     if show:
@@ -163,11 +154,15 @@ def cropToScreen(image, corners, screenSize):
     help="The minimal brightness to compensate for")
 @click.option("--max", type=int, default=None,
     help="The maximal brightness to compensate for")
+@click.option("--by", type=int, required=True,
+    help="Amount of brightness to compensate by (0-255)")
+@click.option("--cutoff", type=int, default=50,
+    help="The value considered as out of screen")
 @click.option("--screen", type=Resolution(), required=True,
     help="The screen resolution in pixels")
 @click.option("--manual", is_flag=True,
     help="Locate screen manually")
-def compensate(output, measurement, min, max, screen, manual):
+def compensate(output, measurement, min, max, by, cutoff, screen, manual):
     """
     Build a compensation mask for a given LCD. Provide a full-screen measurement
     and screen resolution to build a PNG compensation mask that you can load
@@ -175,30 +170,20 @@ def compensate(output, measurement, min, max, screen, manual):
     """
     with open(measurement) as f:
         measurement = json.load(f)
-    data = np.array(measurement["measurements"])
+    data = normalizeData(measurement["measurements"])
 
     corners = []
     if not manual:
-        corners = [(0, 0), (0, data.shape[0]), (data.shape[1], 0), (data.shape[1], data.shape[0])]
+        corners = locateScreenAutomatic(data, cutoff)
     if len(corners) != 4 or manual:
         from .manual_crop import locateScreenManually
         corners = locateScreenManually(data)
-        print(corners)
 
     map = cropToScreen(data, corners, screen)
-    # normalize
-    map = (map - map.min()) / (map.max() - map.min())
-    # invert the mask so that darker areas are dimmed less
-    map = 1 - map
-    # compensate
-    map = min + (max - min) * map
-    # Ensure correct orientation
-    map = np.flipud(map)
-    # Make bottom right corner black
-    height, width = map.shape
-    corner_size = 100  # Größe der Ecke in Pixeln
-    map[height-corner_size:, width-corner_size:] = 0
-    print(map[::25, ::25])
+    if max is None:
+        max = np.max(map)
+    map = np.clip(map - min, 0, max - min) * by / (max - min)
+    map = cv.rotate(map, cv.ROTATE_180)
     cv.imwrite(output, map)
 
 

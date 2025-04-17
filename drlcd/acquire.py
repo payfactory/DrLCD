@@ -7,6 +7,8 @@ from .ui_common import Resolution
 import click
 import json
 
+mm_to_inch = 0.0393701
+
 @click.command()
 @click.argument("output", type=click.Path())
 @click.option("--port", type=str, default="COM6",
@@ -23,7 +25,9 @@ import json
     help="Number of samples in vertical and horizontal direction")
 @click.option("--sensor", type=click.Choice(["TSL2561", "AS7625"]), default="TSL2561",
     help="Sensor used for measurement")
-def measureLcd(port, output, size, resolution, sensor, sleeptime, brightness_threshold, sensor_accuracy) -> None:
+@click.option("--calibrate", type=bool, default=False,
+    help="Stop after calibration")
+def measureLcd(port, output, size, resolution, sensor, sleeptime, brightness_threshold, sensor_accuracy, calibrate) -> None:
     """
     Take and LCD measurement and save the result into a file
     """
@@ -34,16 +38,35 @@ def measureLcd(port, output, size, resolution, sensor, sleeptime, brightness_thr
     }
 
     with machineConnection() as machine:
-        with sensor_connection(port) as sensor:
-            # machine.command("M17") # activate steppers
-            # machine.command("G92 X0 Y0") # set as zero
-            # machine.command(f"G0 X0 Y0 F{feedrate}")
+        machine.move_to(0, 0)
+        machine.start_measure()
+        sleep(5)
+        machine.stop_measure()
+        machine.move_to(size[0] * mm_to_inch, 0)
+        machine.start_measure()
+        sleep(5)
+        machine.stop_measure()
+        machine.move_to(size[0] * mm_to_inch, size[1] * mm_to_inch)
+        machine.start_measure()
+        sleep(5)
+        machine.stop_measure()
+        machine.move_to(0, size[1] * mm_to_inch)
+        machine.start_measure()
+        sleep(5)
+        machine.stop_measure()
+        machine.move_to(0, 0)
 
-            measurements = conservativeMeasurement(machine, size, resolution, sensor, sleeptime, brightness_threshold, sensor_accuracy)
+        if not calibrate:
+            with sensor_connection(port) as sensor:
+                # machine.command("M17") # activate steppers
+                # machine.command("G92 X0 Y0") # set as zero
+                # machine.command(f"G0 X0 Y0 F{feedrate}")
 
-            # machine.command(f"G0 X0 Y0 F{feedrate}")
-            # machine.command("M400", timeout=40)
-            # machine.command("M18")
+                measurements = conservativeMeasurement(machine, size, resolution, sensor, sleeptime, brightness_threshold, sensor_accuracy)
+
+                # machine.command(f"G0 X0 Y0 F{feedrate}")
+                # machine.command("M400", timeout=40)
+                # machine.command("M18")
     measurement["measurements"] = measurements
 
     with open(output, "w") as f:
@@ -51,8 +74,6 @@ def measureLcd(port, output, size, resolution, sensor, sleeptime, brightness_thr
 
 def conservativeMeasurement(machine: Machine, size: Tuple[int, int],
         resolution: Tuple[int, int], sensor: Sensor, sleeptime: float, brightness_threshold: float, sensor_accuracy: float) -> List[List[Any]]:
-    
-    mm_to_inch = 0.0393701
     measurements = []
     for y in range(resolution[1]):
         row = [0 for x in range(resolution[0])]

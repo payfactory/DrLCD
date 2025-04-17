@@ -40,7 +40,41 @@ $ python -m drlcd compensate --measurement <measurement file> --min <low value t
 ```
 
 ```
+python -m drlcd measurelcd --size 192x115 --resolution 64x38 --sleeptime 0.3 --brightness_threshold=0.5 test.json --calibrate true
+python -m drlcd measurelcd --size 192x115 --resolution 64x38 --sleeptime 0.3 --brightness_threshold=0.5 test.json 
+python -m drlcd visualize --show --title "Test title" test.json test.html
+python -m drlcd compensate --measurement test.json --min 210 --max 255 --screen 3840x2400 test.png
+
+
+```
+```
+
+
+
+
+python -m drlcd compensate --measurement test.json --min 0 --max 255 --screen 3840x2400 test.png --manual
+
 python -m drlcd measurelcd --size 30x30 --resolution 10x10 --sleeptime 3.0 --brightness_threshold=0.5 test.json
 python -m drlcd visualize --show --title "test" test.json test.html
-python -m drlcd compensate --measurement test.json --min 0 --max 255 --by 25 --screen 10x10 --cutoff 0.0 test.png
+python -m drlcd compensate --measurement test.json --min 210 --max 255 --screen 3840x2400 test.png
 ```
+
+python -m drlcd measurelcd --size 180x109 --resolution 31x19 --sleeptime 0.3 --brightness_threshold=0.5 gammatec_sonicxl4k_mask.json --calibrate true
+python -m drlcd visualize --show --title "gammatec_sonicxl4k_mask240_255" gammatec_sonicxl4k_mask_240_255.json gammatec_sonicxl4k_240_255.html
+python -m drlcd compensate --measurement gammatec_sonicxl4k.json --min 210 --max 255 --screen 3840x2400 test.png --manual
+
+
+
+python -m drlcd visualize --show --title "gammatec_sonicxl4k_no_mask.json " gammatec_sonicxl4k_no_mask.json  gammatec_sonicxl4k_no_mask.html
+python -m drlcd compensate --measurement gammatec_sonicxl4k_no_mask.json --screen 3840x2400 gammatec_sonicxl4k_mask2.png --manual
+
+
+python -m drlcd visualize --show --title "gammatec_sonicxl4k_mask5" gammatec_sonicxl4k_mask5.json gammatec_sonicxl4k_mask5.html
+
+gammatec_sonicxl4k_mask5
+python -m drlcd measurelcd --size 180x109 --resolution 31x19 --sleeptime 0.3 --brightness_threshold=0.5 gammatec_sonicxl4k_mask_test2.json
+
+python -m drlcd compensate --measurement gammatec_sonicxl4k_no_mask.json --screen 3840x2400 gammatec_sonicxl4k_mask2.png --manual
+python -m drlcd visualize --show --title "gammatec_sonicxl4k_mask_3" gammatec_sonicxl4k_mask_3.json gammatec_sonicxl4k_mask_3.html
+
+
