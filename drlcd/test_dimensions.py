@@ -17,6 +17,8 @@ class DimensionTester:
         }
         self.machine = None
         self.origin_offset = (0, 0)
+        self.size_x = 0
+        self.size_y = 0
 
     def connect_machine(self):
         if self.machine is None:
@@ -73,6 +75,36 @@ class DimensionTester:
         self.current_y = 0
         ui.notify('Moved to origin')
 
+    def move_to_corner(self, corner):
+        if self.machine is None:
+            ui.notify('Please connect to machine first!')
+            return
+        
+        if self.size_x == 0 or self.size_y == 0:
+            ui.notify('Please set the size first!')
+            return
+
+        if corner == 'top_left':
+            x = self.size_x
+            y = self.size_y
+        elif corner == 'top_right':
+            x = 0
+            y = self.size_y
+        elif corner == 'bottom_left':
+            x = self.size_x
+            y = 0
+        elif corner == 'bottom_right':
+            x = 0
+            y = 0
+        
+        x_inch = (x + self.origin_offset[0]) * mm_to_inch
+        y_inch = (y + self.origin_offset[1]) * mm_to_inch
+        
+        self.machine.move_to(x_inch, y_inch)
+        self.current_x = x
+        self.current_y = y
+        ui.notify(f'Moved to {corner} corner')
+
 def main():
     tester = DimensionTester()
     
@@ -82,11 +114,23 @@ def main():
         # Connection button
         ui.button('Connect to Machine', on_click=tester.connect_machine).classes('m-4')
         
+        # Size input
+        with ui.row().classes('gap-4 m-4'):
+            ui.number('Width (mm)', value=0, on_change=lambda e: setattr(tester, 'size_x', e.value))
+            ui.number('Height (mm)', value=0, on_change=lambda e: setattr(tester, 'size_y', e.value))
+        
         # Origin controls
         with ui.row().classes('gap-4 m-4'):
             ui.button('Set Origin', on_click=tester.set_origin)
             ui.button('Move to Origin', on_click=tester.move_to_origin)
-
+        
+        # Corner buttons
+        with ui.grid(columns=2).classes('gap-4 m-4'):
+            ui.button('Top Left', on_click=lambda: tester.move_to_corner('top_left'))
+            ui.button('Top Right', on_click=lambda: tester.move_to_corner('top_right'))
+            ui.button('Bottom Left', on_click=lambda: tester.move_to_corner('bottom_left'))
+            ui.button('Bottom Right', on_click=lambda: tester.move_to_corner('bottom_right'))
+        
         # Large adjustment (10mm)
         with ui.row().classes('gap-4 m-4'):
             ui.button('← 10', on_click=lambda: tester.adjust_position('x', 10))
