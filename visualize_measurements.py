@@ -37,23 +37,43 @@ def plot_measurements_and_masks(measurement_files, mask_files, output_path=None)
     n_rows = n_measurements
     n_cols = 2  # One for measurement, one for mask
     
+    # First load all measurement data to find global min and max
+    all_values = []
+    all_sensors = []
+    for meas_file in measurement_files:
+        try:
+            values, sensor = load_measurement_data(meas_file)
+            all_values.append(values)
+            all_sensors.append(sensor)
+        except Exception as e:
+            print(f"Error processing measurement {meas_file}: {e}")
+            all_values.append(None)
+            all_sensors.append(None)
+    
+    # Find global min and max from valid measurements
+    valid_values = [v for v in all_values if v is not None]
+    if valid_values:
+        vmin = min(v.min() for v in valid_values)
+        vmax = max(v.max() for v in valid_values)
+    else:
+        vmin, vmax = 0, 1  # Default range if no valid measurements
+    
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(12, 6*n_rows))
     if n_rows == 1:
         axes = axes.reshape(1, -1)
     
     # Plot each measurement and mask pair
-    for idx, (meas_file, mask_file) in enumerate(zip(measurement_files, mask_files)):
+    for idx, (values, sensor, mask_file) in enumerate(zip(all_values, all_sensors, mask_files)):
         # Plot measurement data
-        try:
-            values, sensor = load_measurement_data(meas_file)
-            im = axes[idx, 0].imshow(values, cmap='viridis')
-            axes[idx, 0].set_title(f'{Path(meas_file).stem}\nSensor: {sensor}')
-            plt.colorbar(im, ax=axes[idx, 0])
+        if values is not None:
+            im = axes[idx, 0].imshow(values, cmap='viridis', vmin=vmin, vmax=vmax)
+            axes[idx, 0].set_title(f'{Path(measurement_files[idx]).stem}\nSensor: {sensor}')
+            cbar = plt.colorbar(im, ax=axes[idx, 0])
+            cbar.set_label('Measurement Value')
             axes[idx, 0].set_xlabel('X position')
             axes[idx, 0].set_ylabel('Y position')
-        except Exception as e:
-            print(f"Error processing measurement {meas_file}: {e}")
-            axes[idx, 0].text(0.5, 0.5, f'Error loading\n{Path(meas_file).name}',
+        else:
+            axes[idx, 0].text(0.5, 0.5, f'Error loading\n{Path(measurement_files[idx]).name}',
                             ha='center', va='center')
         
         # Plot mask image if available, otherwise show "No mask" message
@@ -83,6 +103,9 @@ def plot_measurements_and_masks(measurement_files, mask_files, output_path=None)
         axes[idx, 0].set_yticks([])
         axes[idx, 1].set_xticks([])
         axes[idx, 1].set_yticks([])
+    
+    # Add a title showing the value range
+    fig.suptitle(f'Measurement Range: {vmin:.3f} to {vmax:.3f}', y=1.02)
     
     plt.tight_layout()
     
