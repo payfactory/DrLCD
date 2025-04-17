@@ -256,29 +256,30 @@ def compensate(output, measurement, min_value, max_value, screen, manual):
     
     # Create interpolation points for smooth transitions
     x_points = np.array([min_measured, 
-                        min_measured + range_measured * 0.15,
-                        min_measured + range_measured * 0.3,
-                        min_measured + range_measured * 0.45,
-                        min_measured + range_measured * 0.6,
-                        min_measured + range_measured * 0.75,
+                        min_measured + range_measured * 0.1,
+                        min_measured + range_measured * 0.2,
+                        min_measured + range_measured * 0.35,
+                        min_measured + range_measured * 0.5,
+                        min_measured + range_measured * 0.65,
+                        min_measured + range_measured * 0.8,
                         min_measured + range_measured * 0.9,
                         max_measured])
     
-    # Sehr sanfte, feinere Dimmung: Von 0.98 (98%) bis 0.82 (82%)
-    y_points = np.array([0.98, 0.96, 0.94, 0.91, 0.88, 0.85, 0.83, 0.82])
+    # Sanftere Kompensation mit mehr Zwischenstufen
+    y_points = np.array([0.99, 0.97, 0.95, 0.93, 0.91, 0.89, 0.87, 0.86, 0.85])
     
     # Create Akima interpolator for smooth transitions
     interpolator = Akima1DInterpolator(x_points, y_points)
     
     # Apply compensation using interpolation
     compensation = interpolator(map)
-    compensation = np.clip(compensation, 0.82, 1.0)  # Ensure values stay within reasonable range
+    compensation = np.clip(compensation, 0.85, 1.0)  # Ensure values stay within reasonable range
     
-    # Apply edge-preserving smoothing to maintain detail while smoothing transitions
-    compensation = cv.bilateralFilter(compensation.astype(np.float32), d=5, sigmaColor=0.03, sigmaSpace=5)
+    # Apply edge-preserving smoothing with reduced parameters
+    compensation = cv.bilateralFilter(compensation.astype(np.float32), d=3, sigmaColor=0.02, sigmaSpace=3)
     
     # Additional detail-preserving smoothing with minimal smoothing
-    compensation = gaussian_filter(compensation, sigma=0.1)
+    compensation = gaussian_filter(compensation, sigma=0.08)
     
     # Handle edge regions - create a border mask
     border_width = 50  # Width of border region to check
