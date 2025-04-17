@@ -31,13 +31,24 @@ def load_measurement_data(file_path):
     
     return values, data['sensor']
 
+def calculate_differences(original_values, all_values):
+    """Calculate the difference between each measurement and the original measurement."""
+    differences = []
+    for values in all_values:
+        if values is not None:
+            diff = values - original_values
+            differences.append(diff)
+        else:
+            differences.append(None)
+    return differences
+
 def plot_measurements_and_masks(measurement_files, mask_files, output_path=None):
     """Plot measurements and corresponding mask images side by side."""
     n_measurements = len(measurement_files)
     n_rows = n_measurements
     n_cols = 2  # One for measurement, one for mask
     
-    # First load all measurement data to find global min and max
+    # First load all measurement data
     all_values = []
     all_sensors = []
     for meas_file in measurement_files:
@@ -50,26 +61,30 @@ def plot_measurements_and_masks(measurement_files, mask_files, output_path=None)
             all_values.append(None)
             all_sensors.append(None)
     
-    # Find global min and max from valid measurements
-    valid_values = [v for v in all_values if v is not None]
-    if valid_values:
-        vmin = min(v.min() for v in valid_values)
-        vmax = max(v.max() for v in valid_values)
+    # Calculate differences from the original measurement
+    original_values = all_values[0]  # First measurement is considered the original
+    differences = calculate_differences(original_values, all_values)
+    
+    # Find global min and max from valid differences
+    valid_diffs = [d for d in differences if d is not None]
+    if valid_diffs:
+        vmin = min(d.min() for d in valid_diffs)
+        vmax = max(d.max() for d in valid_diffs)
     else:
-        vmin, vmax = 0, 1  # Default range if no valid measurements
+        vmin, vmax = -1, 1  # Default range if no valid differences
     
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(12, 6*n_rows))
     if n_rows == 1:
         axes = axes.reshape(1, -1)
     
-    # Plot each measurement and mask pair
-    for idx, (values, sensor, mask_file) in enumerate(zip(all_values, all_sensors, mask_files)):
-        # Plot measurement data
-        if values is not None:
-            im = axes[idx, 0].imshow(values, cmap='viridis', vmin=vmin, vmax=vmax)
+    # Plot each difference and mask pair
+    for idx, (diff, sensor, mask_file) in enumerate(zip(differences, all_sensors, mask_files)):
+        # Plot difference data
+        if diff is not None:
+            im = axes[idx, 0].imshow(diff, cmap='RdBu', vmin=vmin, vmax=vmax)
             axes[idx, 0].set_title(f'{Path(measurement_files[idx]).stem}\nSensor: {sensor}')
             cbar = plt.colorbar(im, ax=axes[idx, 0])
-            cbar.set_label('Measurement Value')
+            cbar.set_label('Difference from Original')
             axes[idx, 0].set_xlabel('X position')
             axes[idx, 0].set_ylabel('Y position')
         else:
@@ -104,8 +119,8 @@ def plot_measurements_and_masks(measurement_files, mask_files, output_path=None)
         axes[idx, 1].set_xticks([])
         axes[idx, 1].set_yticks([])
     
-    # Add a title showing the value range
-    fig.suptitle(f'Measurement Range: {vmin:.3f} to {vmax:.3f}', y=1.02)
+    # Add a title showing the difference range
+    fig.suptitle(f'Difference Range: {vmin:.3f} to {vmax:.3f}', y=1.02)
     
     plt.tight_layout()
     
@@ -131,4 +146,4 @@ if __name__ == "__main__":
     ]
     
     # Plot measurements and masks
-    plot_measurements_and_masks(measurements, masks, "measurement_comparison.png") 
+    plot_measurements_and_masks(measurements, masks, "measurement_differences.png") 
