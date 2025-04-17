@@ -7,7 +7,10 @@ from .ui_common import Resolution
 import click
 import json
 
-mm_to_inch = 0.0393701
+# links rechts
+mm_to_inch_x = 0.0393701 * 129.0 / 136.0 * (129.0 - 1.8) / 129.0 * (225.0 + 7.0) / 225.0 * (225.0 + 2.6) / 225.0
+# hoch runter
+mm_to_inch_y = 0.0393701 * 129.0 / 136.0 * (129.0 - 1.8) / 129.0
 
 @click.command()
 @click.argument("output", type=click.Path())
@@ -43,15 +46,15 @@ def measureLcd(port, output, size, resolution, sensor, sleeptime, brightness_thr
         machine.start_measure()
         sleep(5)
         machine.stop_measure()
-        machine.move_to(size[0] * mm_to_inch, 0)
+        machine.move_to(size[0] * mm_to_inch_x, 0)
         machine.start_measure()
         sleep(5)
         machine.stop_measure()
-        machine.move_to(size[0] * mm_to_inch, size[1] * mm_to_inch)
+        machine.move_to(size[0] * mm_to_inch_x, size[1] * mm_to_inch_y)
         machine.start_measure()
         sleep(5)
         machine.stop_measure()
-        machine.move_to(0, size[1] * mm_to_inch)
+        machine.move_to(0, size[1] * mm_to_inch_y)
         machine.start_measure()
         sleep(5)
         machine.stop_measure()
@@ -83,8 +86,8 @@ def conservativeMeasurement(machine: Machine, size: Tuple[int, int],
         if y % 2 == 1:
             xRange = reversed(xRange)
         for x in xRange:
-            targetX = x * size[0] / (resolution[0] - 1) * mm_to_inch
-            targetY = y * size[1] / (resolution[1] - 1) * mm_to_inch
+            targetX = x * size[0] / (resolution[0] - 1) * mm_to_inch_x
+            targetY = y * size[1] / (resolution[1] - 1) * mm_to_inch_y
             machine.move_to(targetX, targetY)
             machine.start_measure()
             sleep(sleeptime)

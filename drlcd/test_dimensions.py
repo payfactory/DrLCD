@@ -2,8 +2,7 @@ from nicegui import ui
 from drlcd.machine import machineConnection, Machine
 import json
 from pathlib import Path
-
-mm_to_inch = 0.0393701
+from .acquire import mm_to_inch_x, mm_to_inch_y
 
 class DimensionTester:
     def __init__(self):
@@ -17,8 +16,8 @@ class DimensionTester:
         }
         self.machine = None
         self.origin_offset = (0, 0)
-        self.size_x = 0
-        self.size_y = 0
+        self.size_x = 225
+        self.size_y = 129
 
     def connect_machine(self):
         if self.machine is None:
@@ -37,8 +36,8 @@ class DimensionTester:
         else:
             self.current_y += amount
         
-        x_inch = (self.current_x + self.origin_offset[0]) * mm_to_inch
-        y_inch = (self.current_y + self.origin_offset[1]) * mm_to_inch
+        x_inch = (self.current_x + self.origin_offset[0]) * mm_to_inch_x
+        y_inch = (self.current_y + self.origin_offset[1]) * mm_to_inch_y
         
         self.machine.move_to(x_inch, y_inch)
         ui.notify(f'Adjusted {axis} position by {amount}mm')
@@ -99,8 +98,8 @@ class DimensionTester:
             x = 0
             y = 0
         
-        x_inch = (x + self.origin_offset[0]) * mm_to_inch
-        y_inch = (y + self.origin_offset[1]) * mm_to_inch
+        x_inch = (x + self.origin_offset[0]) * mm_to_inch_x
+        y_inch = (y + self.origin_offset[1]) * mm_to_inch_y
         
         self.machine.move_to(x_inch, y_inch)
         self.current_x = x
@@ -118,8 +117,8 @@ def main():
         
         # Size input
         with ui.row().classes('gap-4 m-4'):
-            ui.number('Width (mm)', value=0, on_change=lambda e: setattr(tester, 'size_x', e.value))
-            ui.number('Height (mm)', value=0, on_change=lambda e: setattr(tester, 'size_y', e.value))
+            ui.number('Width (mm)', value=tester.size_x, on_change=lambda e: setattr(tester, 'size_x', e.value))
+            ui.number('Height (mm)', value=tester.size_y, on_change=lambda e: setattr(tester, 'size_y', e.value))
         
         # Origin controls
         with ui.row().classes('gap-4 m-4'):
