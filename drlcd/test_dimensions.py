@@ -62,6 +62,17 @@ class DimensionTester:
             return
         self.machine.start_measure()
 
+    def move_to_origin(self):
+        if self.machine is None:
+            ui.notify('Please connect to machine first!')
+            return
+        
+        # Move to origin (0,0) in machine coordinates
+        self.machine.move_to(0, 0)
+        self.current_x = 0
+        self.current_y = 0
+        ui.notify('Moved to origin')
+
 def main():
     tester = DimensionTester()
     
@@ -71,8 +82,10 @@ def main():
         # Connection button
         ui.button('Connect to Machine', on_click=tester.connect_machine).classes('m-4')
         
-        # Origin button
-        ui.button('Set Origin', on_click=tester.set_origin).classes('m-4')
+        # Origin controls
+        with ui.row().classes('gap-4 m-4'):
+            ui.button('Set Origin', on_click=tester.set_origin)
+            ui.button('Move to Origin', on_click=tester.move_to_origin)
 
         # Large adjustment (10mm)
         with ui.row().classes('gap-4 m-4'):
