@@ -17,10 +17,17 @@ def load_measurement_data(file_path):
     # Create empty array for values
     values = np.zeros((resolution[1], resolution[0]))
     
-    # Fill array with measurement values
-    for y, row in enumerate(measurements):
-        for x, point in enumerate(row):
-            values[y, x] = point['value']
+    # Check if measurements is a list of lists of dictionaries or just a list of lists
+    if isinstance(measurements[0][0], dict):
+        # Format with dictionaries containing x, y, value
+        for y, row in enumerate(measurements):
+            for x, point in enumerate(row):
+                values[y, x] = point['value']
+    else:
+        # Format with direct values
+        for y, row in enumerate(measurements):
+            for x, value in enumerate(row):
+                values[y, x] = value
     
     return values, data['sensor']
 
@@ -49,22 +56,33 @@ def plot_measurements_and_masks(measurement_files, mask_files, output_path=None)
             axes[idx, 0].text(0.5, 0.5, f'Error loading\n{Path(meas_file).name}',
                             ha='center', va='center')
         
-        # Plot mask image
-        try:
-            if Path(mask_file).exists():
-                mask = mpimg.imread(mask_file)
-                axes[idx, 1].imshow(mask)
-                axes[idx, 1].set_title(f'Mask: {Path(mask_file).stem}')
-            else:
-                axes[idx, 1].text(0.5, 0.5, f'Mask file not found:\n{mask_file}',
+        # Plot mask image if available, otherwise show "No mask" message
+        if mask_file is None:
+            axes[idx, 1].text(0.5, 0.5, 'No mask\n(Original measurement)',
+                            ha='center', va='center', fontsize=12)
+            axes[idx, 1].set_title('No mask')
+        else:
+            try:
+                if Path(mask_file).exists():
+                    mask = mpimg.imread(mask_file)
+                    axes[idx, 1].imshow(mask)
+                    axes[idx, 1].set_title(f'Mask: {Path(mask_file).stem}')
+                else:
+                    axes[idx, 1].text(0.5, 0.5, f'Mask file not found:\n{mask_file}',
+                                    ha='center', va='center')
+            except Exception as e:
+                print(f"Error processing mask {mask_file}: {e}")
+                axes[idx, 1].text(0.5, 0.5, f'Error loading\n{Path(mask_file).name}',
                                 ha='center', va='center')
-        except Exception as e:
-            print(f"Error processing mask {mask_file}: {e}")
-            axes[idx, 1].text(0.5, 0.5, f'Error loading\n{Path(mask_file).name}',
-                            ha='center', va='center')
         
         axes[idx, 1].set_xlabel('X position')
         axes[idx, 1].set_ylabel('Y position')
+        
+        # Remove ticks for cleaner look
+        axes[idx, 0].set_xticks([])
+        axes[idx, 0].set_yticks([])
+        axes[idx, 1].set_xticks([])
+        axes[idx, 1].set_yticks([])
     
     plt.tight_layout()
     
@@ -76,12 +94,14 @@ def plot_measurements_and_masks(measurement_files, mask_files, output_path=None)
 if __name__ == "__main__":
     # List of measurement files and corresponding mask files
     measurements = [
+        "gammatec_sonicxl4k_no_mask.json",  # Original measurement without mask
         "gammatec_sonicxl4k_mask5.json",
         "gammatec_sonicxl4k_mask4.json",
         "gammatec_sonicxl4k_mask_3.json"
     ]
     
     masks = [
+        None,  # No mask for the original measurement
         "gammatec_sonicxl4k_mask5.png",
         "gammatec_sonicxl4k_mask4.png",
         "gammatec_sonicxl4k_mask3.png"
