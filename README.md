@@ -78,3 +78,5 @@ python -m drlcd compensate --measurement gammatec_sonicxl4k_no_mask.json --scree
 python -m drlcd visualize --show --title "gammatec_sonicxl4k_mask_3" gammatec_sonicxl4k_mask_3.json gammatec_sonicxl4k_mask_3.html
 
 
+# Use this to move the robot
+python -m drlcd.test_dimensions
