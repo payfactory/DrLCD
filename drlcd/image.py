@@ -7,7 +7,9 @@ import numpy as np
 import cv2 as cv
 import itertools
 from scipy.ndimage.filters import gaussian_filter
+from scipy.interpolate import Akima1DInterpolator
 from .ui_common import Resolution
+import os
 
 def replacePeaks(arr: np.array, threshold: float, windowSize: int):
     """
@@ -29,8 +31,12 @@ def replacePeaks(arr: np.array, threshold: float, windowSize: int):
 
     return result
 
-def normalizeData(data: List[List[float]], lowThreshold=0) -> List[List[float]]:
-    npArray = np.array(data)
+def normalizeData(data: List[List[dict]], lowThreshold=0) -> List[List[float]]:
+    # Extract just the values from the measurement dictionaries
+    values = [[point['value'] for point in row] for row in data]
+    
+    # Convert to numpy array
+    npArray = np.array(values)
 
     # There are often faulty peaks in the source data, let's filter them out
     mean = np.mean(npArray)
@@ -65,9 +71,36 @@ def visualize(input, output, title, show, threshold):
     # Add statistics to title
     stats_title = f"{title}<br>Min: {min_val:.3f} | Max: {max_val:.3f} | Avg: {avg_val:.3f}"
     
+    # Create figure with proper orientation
     fig = go.Figure(data=[go.Surface(z=data)])
-    fig.update_layout(title=stats_title, autosize=True,
-                  scene_aspectmode="manual", scene_aspectratio=dict(x=1, y=measurement["resolution"][1]/measurement["resolution"][0], z=0.1))
+    
+    # Update layout to ensure X0Y0 is at top left
+    fig.update_layout(
+        title=stats_title,
+        autosize=True,
+        scene=dict(
+            aspectmode="manual",
+            aspectratio=dict(x=1, y=measurement["resolution"][1]/measurement["resolution"][0], z=0.1),
+            camera=dict(
+                up=dict(x=0, y=0, z=1),
+                center=dict(x=0, y=0, z=0),
+                eye=dict(x=1.5, y=1.5, z=1.5)
+            ),
+            xaxis=dict(
+                title='X',
+                range=[0, len(data[0])-1],
+                autorange='reversed'  # Reverse X axis to match X0Y0 at top left
+            ),
+            yaxis=dict(
+                title='Y',
+                range=[0, len(data)-1]
+            ),
+            zaxis=dict(
+                title='Brightness'
+            )
+        )
+    )
+    
     fig.write_html(output)
     if show:
         fig.show()
@@ -147,9 +180,10 @@ def cropToScreen(image, corners, screenSize):
 
     npImg = np.array(image)
 
-    sortedCorners = sorted(corners, key=originDistance)
+    # Sort corners to ensure X0Y0 is at the black corner
+    sortedCorners = sorted(corners, key=lambda p: (p[0] + p[1]))  # Sort by sum of coordinates
     expected = sorted([(0, 0), (0, screenSize[1]), (screenSize[0], 0), screenSize],
-                      key=originDistance)
+                      key=lambda p: (p[0] + p[1]))  # Sort by sum of coordinates
 
     perspTransform = cv.getPerspectiveTransform(np.float32(sortedCorners), np.float32(expected))
     return cv.warpPerspective(npImg, perspTransform, screenSize)
@@ -159,15 +193,15 @@ def cropToScreen(image, corners, screenSize):
 @click.option("--measurement", type=click.Path(exists=True, file_okay=True, dir_okay=False),
     required=True,
     help="The full-screen measurement JSON file")
-@click.option("--min", type=int, required=True,
-    help="The minimal brightness to compensate for")
-@click.option("--max", type=int, default=None,
-    help="The maximal brightness to compensate for")
+@click.option("--min", "min_value", type=int, default=0,
+    help="The minimal brightness value (0-255)")
+@click.option("--max", "max_value", type=int, default=255,
+    help="The maximal brightness value (0-255)")
 @click.option("--screen", type=Resolution(), required=True,
     help="The screen resolution in pixels")
 @click.option("--manual", is_flag=True,
     help="Locate screen manually")
-def compensate(output, measurement, min, max, screen, manual):
+def compensate(output, measurement, min_value, max_value, screen, manual):
     """
     Build a compensation mask for a given LCD. Provide a full-screen measurement
     and screen resolution to build a PNG compensation mask that you can load
@@ -175,7 +209,25 @@ def compensate(output, measurement, min, max, screen, manual):
     """
     with open(measurement) as f:
         measurement = json.load(f)
-    data = np.array(measurement["measurements"])
+    
+    # Extract values from the measurement data structure
+    data = np.array([[point['value'] for point in row] for row in measurement["measurements"]])
+
+    # Analyze measurement values
+    min_val = np.nanmin(data)
+    max_val = np.nanmax(data)
+    mean_val = np.nanmean(data)
+    
+    # Calculate a more meaningful minimum value
+    # Use the 5th percentile as minimum to exclude extreme outliers
+    valid_min = np.nanpercentile(data, 5)
+    
+    print(f"\nMeasurement analysis:")
+    print(f"Raw minimum value: {min_val:.2f} mW")
+    print(f"Valid minimum value (5th percentile): {valid_min:.2f} mW")
+    print(f"Maximum value: {max_val:.2f} mW")
+    print(f"Mean value: {mean_val:.2f} mW")
+    print(f"Dynamic range: {max_val/valid_min:.1f}x")
 
     corners = []
     if not manual:
@@ -186,19 +238,120 @@ def compensate(output, measurement, min, max, screen, manual):
         print(corners)
 
     map = cropToScreen(data, corners, screen)
-    # normalize
-    map = (map - map.min()) / (map.max() - map.min())
-    # invert the mask so that darker areas are dimmed less
-    map = 1 - map
-    # compensate
-    map = min + (max - min) * map
-    # Ensure correct orientation
-    map = np.flipud(map)
-    # Make bottom right corner black
-    height, width = map.shape
-    corner_size = 100  # Größe der Ecke in Pixeln
-    map[height-corner_size:, width-corner_size:] = 0
-    print(map[::25, ::25])
-    cv.imwrite(output, map)
+    
+    # Replace any NaN values with the mean value
+    map = np.nan_to_num(map, nan=mean_val)
+    
+    # Apply general smoothing to reduce noise
+    map = gaussian_filter(map, sigma=0.8)
+    
+    # Create base compensation mask
+    compensation = np.ones_like(map)
+    
+    # Define threshold levels based on measured values
+    # Calculate thresholds relative to the measured range
+    max_measured = max_val
+    min_measured = valid_min
+    range_measured = max_measured - min_measured
+    
+    # Create interpolation points for smooth transitions
+    x_points = np.array([min_measured, 
+                        min_measured + range_measured * 0.15,
+                        min_measured + range_measured * 0.3,
+                        min_measured + range_measured * 0.45,
+                        min_measured + range_measured * 0.6,
+                        min_measured + range_measured * 0.75,
+                        min_measured + range_measured * 0.9,
+                        max_measured])
+    
+    # Sehr sanfte, feinere Dimmung: Von 0.98 (98%) bis 0.82 (82%)
+    y_points = np.array([0.98, 0.96, 0.94, 0.91, 0.88, 0.85, 0.83, 0.82])
+    
+    # Create Akima interpolator for smooth transitions
+    interpolator = Akima1DInterpolator(x_points, y_points)
+    
+    # Apply compensation using interpolation
+    compensation = interpolator(map)
+    compensation = np.clip(compensation, 0.82, 1.0)  # Ensure values stay within reasonable range
+    
+    # Apply edge-preserving smoothing to maintain detail while smoothing transitions
+    compensation = cv.bilateralFilter(compensation.astype(np.float32), d=5, sigmaColor=0.03, sigmaSpace=5)
+    
+    # Additional detail-preserving smoothing with minimal smoothing
+    compensation = gaussian_filter(compensation, sigma=0.1)
+    
+    # Handle edge regions - create a border mask
+    border_width = 50  # Width of border region to check
+    height, width = compensation.shape
+    border_mask = np.ones_like(compensation, dtype=bool)
+    border_mask[border_width:-border_width, border_width:-border_width] = False
+    
+    # Set border regions to maximum brightness (1.0) if they are too dark
+    border_values = compensation[border_mask]
+    border_threshold = 0.9  # Sehr hoher Schwellenwert für Randbereiche
+    compensation[border_mask] = np.where(border_values < border_threshold, 1.0, border_values)
+    
+    # Replace any remaining NaN or infinite values with 1.0 (full brightness)
+    compensation = np.nan_to_num(compensation, nan=1.0, posinf=1.0, neginf=1.0)
+    
+    # Ensure all values are within valid range before scaling
+    compensation = np.clip(compensation, 0.0, 1.0)
+    
+    # Scale to output range (0-255)
+    compensation = min_value + (max_value - min_value) * compensation
+    
+    # Calculate statistics for the entire mask
+    valid_values = compensation[compensation > 0]
+    
+    if len(valid_values) > 0:
+        min_valid = np.min(valid_values)
+        max_valid = np.max(valid_values)
+        mean_valid = np.mean(valid_values)
+        
+        print("\nCompensation mask statistics:")
+        print(f"Minimum value: {min_valid:.2f} (0-255)")
+        print(f"Maximum value: {max_valid:.2f} (0-255)")
+        print(f"Mean value (average brightness): {mean_valid:.2f} (0-255)")
+        print(f"Compensation range: {max_valid/min_valid:.1f}x")
+        
+        # Calculate detailed statistics for each threshold
+        print("\nDetailed compensation analysis:")
+        for x, y in zip(x_points, y_points):
+            mask = map > x
+            pixels = np.sum(mask)
+            if pixels > 0:
+                avg_power = np.mean(map[mask])
+                avg_comp = np.mean(compensation[mask])
+                print(f"- Areas >{x:3.1f} mW ({pixels/compensation.size*100:4.1f}% of pixels):")
+                print(f"  Avg power: {avg_power:.2f} mW, Avg compensation: {avg_comp:.1f}")
+        
+        # Calculate and display the impact of compensation
+        strongest_dimming = (min_valid / 255.0) * 100
+        print(f"\nCompensation impact:")
+        print(f"- Maximum brightness reduction: {100-strongest_dimming:.1f}%")
+        print(f"- Compensation thresholds: {min(x_points):.1f} mW to {max(x_points):.1f} mW")
+        print(f"- Compensation range: {min(y_points)*100:.0f}% to 100% of original brightness")
+    else:
+        print("\nWarning: No valid compensation values found (all values are zero)")
+    
+    # Final cleanup and conversion to 8-bit format
+    compensation = np.clip(compensation, 0, 255)  # Ensure values are in valid range
+    compensation = np.round(compensation)  # Round to nearest integer
+    compensation = compensation.astype(np.uint8)  # Convert to 8-bit format
+    
+    # Rotate the image 180 degrees and flip horizontally
+    compensation = cv.rotate(compensation, cv.ROTATE_180)
+    compensation = cv.flip(compensation, 1)  # Flip horizontally
+    
+    # Save with optimized PNG compression and settings
+    cv.imwrite(output, compensation, [
+        cv.IMWRITE_PNG_COMPRESSION, 9,
+        cv.IMWRITE_PNG_STRATEGY, cv.IMWRITE_PNG_STRATEGY_FILTERED,
+        cv.IMWRITE_PNG_BILEVEL, 0
+    ])
+    
+    # Print file size information
+    file_size = os.path.getsize(output)
+    print(f"\nOutput file size: {file_size / 1024:.1f} KB")
 
 

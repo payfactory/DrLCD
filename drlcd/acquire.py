@@ -34,7 +34,8 @@ def measureLcd(port, output, size, resolution, sensor, sleeptime, brightness_thr
     measurement = {
         "sensor": sensor,
         "size": size,
-        "resolution": resolution
+        "resolution": resolution,
+        "start_point": {"x": 0, "y": 0}  # Add start point information
     }
 
     with machineConnection() as machine:
@@ -97,7 +98,12 @@ def conservativeMeasurement(machine: Machine, size: Tuple[int, int],
                         break
             machine.stop_measure()
             print(f"{x}, {y}: {data2}")
-            row[x] = data2
+            # Store measurement with coordinates
+            row[x] = {
+                'value': data2,
+                'x': x * size[0] / (resolution[0] - 1),  # X coordinate in mm
+                'y': y * size[1] / (resolution[1] - 1)   # Y coordinate in mm
+            }
         measurements.append(row)
     machine.move_to(0, 0)
     return measurements
