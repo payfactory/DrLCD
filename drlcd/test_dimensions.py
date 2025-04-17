@@ -24,6 +24,8 @@ class DimensionTester:
         if self.machine is None:
             self.machine = machineConnection().__enter__()
             ui.notify('Machine connected!')
+        else:
+            ui.notify('Machine already connected!')
 
     def adjust_position(self, axis, amount):
         if self.machine is None:
