@@ -29,6 +29,9 @@ def load_measurement_data(file_path):
             for x, value in enumerate(row):
                 values[y, x] = value
     
+    # Flip the array vertically to mirror the y-axis
+    values = np.flipud(values)
+    
     return values, data['sensor']
 
 def calculate_differences(original_values, all_values):
@@ -81,7 +84,7 @@ def plot_measurements_and_masks(measurement_files, mask_files, output_path=None)
     for idx, (diff, sensor, mask_file) in enumerate(zip(differences, all_sensors, mask_files)):
         # Plot difference data
         if diff is not None:
-            im = axes[idx, 0].imshow(diff, cmap='RdBu', vmin=vmin, vmax=vmax)
+            im = axes[idx, 0].imshow(diff, cmap='RdBu', vmin=vmin, vmax=vmax, origin='lower')
             axes[idx, 0].set_title(f'{Path(measurement_files[idx]).stem}\nSensor: {sensor}')
             cbar = plt.colorbar(im, ax=axes[idx, 0])
             cbar.set_label('Difference from Original')
@@ -100,7 +103,7 @@ def plot_measurements_and_masks(measurement_files, mask_files, output_path=None)
             try:
                 if Path(mask_file).exists():
                     mask = mpimg.imread(mask_file)
-                    axes[idx, 1].imshow(mask)
+                    axes[idx, 1].imshow(mask, origin='lower')
                     axes[idx, 1].set_title(f'Mask: {Path(mask_file).stem}')
                 else:
                     axes[idx, 1].text(0.5, 0.5, f'Mask file not found:\n{mask_file}',
