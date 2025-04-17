@@ -73,6 +73,13 @@ def main():
         
         # Origin button
         ui.button('Set Origin', on_click=tester.set_origin).classes('m-4')
+
+        # Large adjustment (10mm)
+        with ui.row().classes('gap-4 m-4'):
+            ui.button('← 10', on_click=lambda: tester.adjust_position('x', 10))
+            ui.button('→ 10', on_click=lambda: tester.adjust_position('x', -10))
+            ui.button('↑ 10', on_click=lambda: tester.adjust_position('y', 10))
+            ui.button('↓ 10', on_click=lambda: tester.adjust_position('y', -10))
         
         # Position adjustment
         with ui.row().classes('gap-4 m-4'):
@@ -83,8 +90,8 @@ def main():
         
         # Fine adjustment
         with ui.row().classes('gap-4 m-4'):
-            ui.button('← 0.1', on_click=lambda: tester.adjust_position('x', -0.1))
-            ui.button('→ 0.1', on_click=lambda: tester.adjust_position('x', 0.1))
+            ui.button('← 0.1', on_click=lambda: tester.adjust_position('x', 0.1))
+            ui.button('→ 0.1', on_click=lambda: tester.adjust_position('x', -0.1))
             ui.button('↑ 0.1', on_click=lambda: tester.adjust_position('y', 0.1))
             ui.button('↓ 0.1', on_click=lambda: tester.adjust_position('y', -0.1))
 
