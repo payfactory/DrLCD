@@ -103,8 +103,16 @@ def plot_measurements_and_masks(measurement_files, mask_files, output_path=None)
             try:
                 if Path(mask_file).exists():
                     mask = mpimg.imread(mask_file)
-                    axes[idx, 1].imshow(mask, origin='lower')
+                    # Convert to grayscale if it's a color image
+                    if len(mask.shape) == 3:
+                        mask = np.mean(mask, axis=2)
+                    # Scale mask values to 0-255 range
+                    mask = (mask * 255).astype(np.uint8)
+                    mask_im = axes[idx, 1].imshow(mask, cmap='gray', vmin=0, vmax=255, origin='lower')
                     axes[idx, 1].set_title(f'Mask: {Path(mask_file).stem}')
+                    # Add color bar showing mask brightness values
+                    cbar = plt.colorbar(mask_im, ax=axes[idx, 1])
+                    cbar.set_label('Mask Brightness (0-255)')
                 else:
                     axes[idx, 1].text(0.5, 0.5, f'Mask file not found:\n{mask_file}',
                                     ha='center', va='center')
