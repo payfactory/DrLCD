@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
 import matplotlib.image as mpimg
+from scipy.ndimage import zoom
 
 def load_measurement_data(file_path):
     """Load and process measurement data from JSON file."""
@@ -140,6 +141,56 @@ def plot_measurements_and_masks(measurement_files, mask_files, output_path=None)
     else:
         plt.show()
 
+def create_measurement_distribution(measurement_files, mask_files, original_measurement_file="gammatec_sonicxl4k_no_mask.json", output_path="measurement_distribution.png"):
+    """Create a scatter plot showing the relationship between mask brightness and measurement differences for all measurements."""
+    # Load original measurement data (without mask)
+    original_values, _ = load_measurement_data(original_measurement_file)
+    
+    # Create scatter plot
+    plt.figure(figsize=(12, 8))
+    
+    # Define colors for different masks
+    colors = ['blue', 'red', 'green']
+    
+    # Plot each measurement-mask pair
+    for meas_file, mask_file, color in zip(measurement_files[1:], mask_files[1:], colors):
+        if mask_file is not None:
+            # Load current measurement data
+            values, sensor = load_measurement_data(meas_file)
+            
+            # Load and process mask image
+            mask = mpimg.imread(mask_file)
+            if len(mask.shape) == 3:  # Convert to grayscale if color image
+                mask = np.mean(mask, axis=2)
+            mask = (mask * 255).astype(np.uint8)  # Scale to 0-255 range
+            
+            # Downsize mask to match measurement resolution
+            zoom_factors = (values.shape[0] / mask.shape[0], values.shape[1] / mask.shape[1])
+            mask_resized = zoom(mask, zoom_factors, order=1)  # order=1 for bilinear interpolation
+            
+            # Calculate differences from original measurement
+            differences = values - original_values
+            
+            # Plot the data
+            plt.scatter(mask_resized.flatten(), differences.flatten(), 
+                       alpha=0.5, s=10, color=color,
+                       label=f'Mask {Path(mask_file).stem.split("_")[-1]}')
+    
+    # Add labels and title
+    plt.xlabel('Mask Brightness (0-255)')
+    plt.ylabel('Measurement Difference')
+    plt.title(f'Relationship between Mask Brightness and Measurement Differences\nSensor: {sensor}')
+    
+    # Add legend
+    plt.legend()
+    
+    # Add grid
+    plt.grid(True, alpha=0.3)
+    
+    # Save the plot
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+
 if __name__ == "__main__":
     # List of measurement files and corresponding mask files
     measurements = [
@@ -157,4 +208,7 @@ if __name__ == "__main__":
     ]
     
     # Plot measurements and masks
-    plot_measurements_and_masks(measurements, masks, "measurement_differences.png") 
+    plot_measurements_and_masks(measurements, masks, "measurement_differences.png")
+    
+    # Create single scatter plot for all measurements
+    create_measurement_distribution(measurements, masks) 
