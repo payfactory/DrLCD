@@ -6,8 +6,9 @@ from pyaxidraw import axidraw   # import module
 class Machine:
     def __init__(self) -> None:
         self.axidraw = axidraw.AxiDraw()
+        print("AxiDraw connected")
         self.axidraw.interactive()
- # Setze den pen_pos_up-Parameter, hier 1 (was in deinem Setup 1mm entsprechen soll)
+        # Setze den pen_pos_up-Parameter, hier 1 (was in deinem Setup 1mm entsprechen soll)
         #self.axidraw.options.pen_pos_up =25
         #self.axidraw.options.pen_pos_down =31
 
@@ -33,12 +34,3 @@ class Machine:
     def stop_measure(self) -> None:
         self.axidraw.penup()
         self.axidraw.block()
-
-
-@contextmanager
-def machineConnection() -> Generator[Machine, None, None]:
-    machine = Machine()
-    try:
-        yield machine
-    finally:
-        machine.move_to(0, 0)
